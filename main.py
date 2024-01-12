@@ -31,16 +31,15 @@ if __name__ == '__main__':
         news["News"] = (penetrate_site(site, driver))
         time.sleep(5)
     data = pd.DataFrame(mother_extracts)
-    if not os.path.exists("allnews_links.csv") or os.stat("allnews_links.csv").st_size == 0:
-        data.to_csv("allnews_links.csv", mode='a', index=False, header=True)
-    else:
-        data.to_csv("allnews_links.csv", mode='a', index=False, header=False)
+
     print('Done with mother extracts links')
 
     all_data = []
-    count = 0
+    sites_num = 0
+
     for data in mother_extracts:
         print(f'Working on {data["Category"][0]}')
+        count = 0
         for sites in data['News'][:5]:
             if sites.split('/')[2] == "www.ghanaweb.com":
                 main = {}
@@ -48,17 +47,23 @@ if __name__ == '__main__':
                 main['Category'] = data['Category']
                 timestamp = time.time()
                 main['Time'] = time.ctime(timestamp)
+                main['Link'] = sites
                 main['Story'] = scrape_head_body(sites, driver)
                 time.sleep(5)
                 count += 1
-                print(f'Done with {count} out of {len(mother_extracts)}')
+                print(f'Done with {count} out of {len(data["News"])}')
                 all_data.append(main)
+                sites_num += len(data['News'])
 
     all_news = pd.DataFrame(all_data)
     if not os.path.exists("allnews_links.csv") or os.stat("allnews_links.csv").st_size == 0:
         all_news.to_csv("allnews.csv", mode='a', index=False, header=True)
     else:
         all_news.to_csv("allnews.csv", mode='a', index=False, header=False)
-    print('Done with mother extracts links')
+    print('Done with extracting all news')
 
     driver.quit()
+
+    subject = "AKRONOMA PROJECT"
+    body = f"Done with scraping {sites_num} news links on {time.ctime(timestamp)}"
+    email_sender(subject, body, app_email)

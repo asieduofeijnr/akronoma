@@ -1,5 +1,8 @@
-pass.py
+utilities.py
 Dockerfile
 __pycache__
 allnews_links.csv
 allnews.csv
+playground.ipynb
+.DS_Store
+akronomacloudserviceaccount.json

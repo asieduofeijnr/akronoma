@@ -5,6 +5,8 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from utilities import app_password
+from utilities import app_email
 
 import pandas as pd
 import smtplib
@@ -49,31 +51,24 @@ def scrape_head_body(website, driver):
 
 
 def email_sender(subject, body, recipient_email):
-    sender_email = "your_email@gmail.com"  # replace with your email
-    sender_password = "your_password"  # replace with your password
+    sender_email = "adwintechnology@gmail.com"  # replace with your email
+    sender_password = app_password  # replace with your password
 
     try:
         # Set up server
-        server_ssl = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server_ssl.ehlo()   # optional
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server_ssl:
+            # Log in to the server
+            server_ssl.login(sender_email, sender_password)
 
-        # Log in to the server
-        server_ssl.login(sender_email, sender_password)
+            # Prepare email
+            message = MIMEText(body, 'plain')
+            message['From'] = sender_email
+            message['To'] = recipient_email
+            message['Subject'] = subject
 
-        # Prepare email
-        message = MIMEMultipart()
-        message['From'] = sender_email
-        message['To'] = recipient_email
-        message['Subject'] = subject
-        message.attach(MIMEText(body, 'plain'))
-
-        # Send email
-        server_ssl.sendmail(sender_email, recipient_email, message.as_string())
-        print("Email sent successfully!")
+            # Send email
+            server_ssl.send_message(message)
+            print("Email sent successfully!")
 
     except Exception as e:
         print(f'Something went wrong... {e}')
-
-    finally:
-        # Close the server
-        server_ssl.close()
