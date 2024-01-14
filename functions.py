@@ -7,10 +7,12 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from utilities import app_password
 from utilities import app_email
+from google.cloud import bigquery
 
 import pandas as pd
 import smtplib
 import time
+import os
 
 
 def initialize_website(website_url):
@@ -72,3 +74,35 @@ def email_sender(subject, body, recipient_email):
 
     except Exception as e:
         print(f'Something went wrong... {e}')
+
+
+def google_client():
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "akronomacloudserviceaccount.json"
+    client = bigquery.Client()
+    return client
+
+
+def upload_to_bigquery(client, dataframe):
+    job_config = bigquery.LoadJobConfig(
+        schema=[
+            bigquery.SchemaField("source", bigquery.enums.SqlTypeNames.STRING),
+            bigquery.SchemaField(
+                "category", bigquery.enums.SqlTypeNames.STRING),
+            bigquery.SchemaField(
+                "date_time", bigquery.enums.SqlTypeNames.STRING),
+            bigquery.SchemaField("link", bigquery.enums.SqlTypeNames.STRING),
+            bigquery.SchemaField("story", bigquery.enums.SqlTypeNames.STRING),
+        ],
+        skip_leading_rows=0,
+        source_format=bigquery.SourceFormat.CSV,
+    )
+
+    job = client.load_table_from_dataframe(
+        dataframe=dataframe,
+        destination='akronoma.NewsScraping.All_news',
+        location='US',
+        job_config=job_config,
+        job_id_prefix='job_load_df',
+    )
+
+    return job.result()

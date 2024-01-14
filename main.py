@@ -4,8 +4,9 @@ import os
 
 if __name__ == '__main__':
 
-    website = "https://www.ghanaweb.com/"
+    website = "https://www.ghanaweb.live/"
     mother_extracts = []
+    print('Driver Initializing... please wait')
 
     start_time = time.time()
     driver = initialize_website(website)
@@ -40,15 +41,15 @@ if __name__ == '__main__':
     for data in mother_extracts:
         print(f'Working on {data["Category"][0]}')
         count = 0
-        for sites in data['News'][:5]:
-            if sites.split('/')[2] == "www.ghanaweb.com":
+        for sites in data['News']:
+            if sites.split('/')[2] == website.strip('https://'):
                 main = {}
-                main['Data Source'] = data['Data Source']
-                main['Category'] = data['Category']
+                main['source'] = data['Data Source']
+                main['category'] = data['Category']
                 timestamp = time.time()
-                main['Time'] = time.ctime(timestamp)
-                main['Link'] = sites
-                main['Story'] = scrape_head_body(sites, driver)
+                main['date_time'] = time.ctime(timestamp)
+                main['link'] = sites
+                main['story'] = scrape_head_body(sites, driver)
                 time.sleep(5)
                 count += 1
                 print(f'Done with {count} out of {len(data["News"])}')
@@ -56,14 +57,18 @@ if __name__ == '__main__':
                 sites_num += len(data['News'])
 
     all_news = pd.DataFrame(all_data)
-    if not os.path.exists("allnews_links.csv") or os.stat("allnews_links.csv").st_size == 0:
-        all_news.to_csv("allnews.csv", mode='a', index=False, header=True)
-    else:
-        all_news.to_csv("allnews.csv", mode='a', index=False, header=False)
+    columns = ['source', 'category', 'date_time', 'link', 'story']
+    all_news.columns = columns
+
     print('Done with extracting all news')
 
     driver.quit()
 
+    client = google_client()
+
+    job = upload_to_bigquery(client, all_news)
+
     subject = "AKRONOMA PROJECT"
-    body = f"Done with scraping {sites_num} news links on {time.ctime(timestamp)}"
+    body = f'''Done with scraping {sites_num} news links on {time.ctime(timestamp)}
+            Uploaded to <<<{job}>>>'''
     email_sender(subject, body, app_email)
