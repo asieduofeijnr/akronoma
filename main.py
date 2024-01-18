@@ -4,6 +4,7 @@ import os
 
 if __name__ == '__main__':
 
+    table_id = "akronoma.NewsScraping.All_news"
     website = "https://www.ghanaweb.live/"
     mother_extracts = []
     print('Driver Initializing... please wait')
@@ -17,10 +18,10 @@ if __name__ == '__main__':
 
     nav_element = driver.find_elements(By.XPATH, '//ul[@id="mainnavinner"]//a')
     for items in nav_element:
-        data = {}
-        data["Data Source"] = website
-        data["Category"] = (items.text, items.get_attribute("href"))
-        data["News"] = []
+        data = {"Data Source": website,
+                "Category": (items.text, items.get_attribute("href")),
+                "News": []
+                }
 
         mother_extracts.append(data)
 
@@ -31,34 +32,34 @@ if __name__ == '__main__':
         site = news['Category'][1]
         news["News"] = (penetrate_site(site, driver))
         time.sleep(5)
-    data = pd.DataFrame(mother_extracts)
 
     print('Done with mother extracts links')
 
     all_data = []
     sites_num = 0
+    stripped_website = website.strip('https://')
 
     for data in mother_extracts:
         print(f'Working on {data["Category"][0]}')
-        count = 0
-        for sites in data['News']:
-            if sites.split('/')[2] == website.strip('https://'):
-                main = {}
-                main['source'] = data['Data Source']
-                main['category'] = data['Category']
+
+        for count, site in enumerate(data['News'][:5], start=1):
+            if site.split('/')[2] == stripped_website:
                 timestamp = time.time()
-                main['date_time'] = time.ctime(timestamp)
-                main['link'] = sites
-                main['story'] = scrape_head_body(sites, driver)
+                main = {
+                    'source': data['Data Source'],
+                    'category_title': data['Category'][0],
+                    'category_link': data['Category'][1],
+                    'date_time': time.ctime(timestamp),
+                    'link': site,
+                    'story_title': scrape_head_body(site, driver)[0],
+                    'story_body': scrape_head_body(site, driver)[1],
+                }
                 time.sleep(5)
-                count += 1
+
                 print(f'Done with {count} out of {len(data["News"])}')
                 all_data.append(main)
-                sites_num += len(data['News'])
 
-    all_news = pd.DataFrame(all_data)
-    columns = ['source', 'category', 'date_time', 'link', 'story']
-    all_news.columns = columns
+    sites_num = sum(len(data['News']) for data in mother_extracts)
 
     print('Done with extracting all news')
 
@@ -66,9 +67,11 @@ if __name__ == '__main__':
 
     client = google_client()
 
-    job = upload_to_bigquery(client, all_news)
+    job = upload_to_bigquery(client=client, table_id=table_id, data=all_data)
 
     subject = "AKRONOMA PROJECT"
     body = f'''Done with scraping {sites_num} news links on {time.ctime(timestamp)}
-            Uploaded to <<<{job}>>>'''
+            BIGQUERY UPLOAD ERRORS -----> <<<{job}>>>'''
     email_sender(subject, body, app_email)
+
+    print('Completed ----> Check your email for details')

@@ -1,15 +1,15 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from utilities import app_password
 from utilities import app_email
 from google.cloud import bigquery
 
-import pandas as pd
+
 import smtplib
 import time
 import os
@@ -17,14 +17,13 @@ import os
 
 def initialize_website(website_url):
 
-    # Initialize the Chrome driver with options
     chrome_options = Options()
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    driver = webdriver.Chrome(service=Service(
-        ChromeDriverManager().install()), options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options,
+                              service=Service(ChromeDriverManager().install()))
 
     try:
         driver.get(website_url)
@@ -82,27 +81,10 @@ def google_client():
     return client
 
 
-def upload_to_bigquery(client, dataframe):
-    job_config = bigquery.LoadJobConfig(
-        schema=[
-            bigquery.SchemaField("source", bigquery.enums.SqlTypeNames.STRING),
-            bigquery.SchemaField(
-                "category", bigquery.enums.SqlTypeNames.STRING),
-            bigquery.SchemaField(
-                "date_time", bigquery.enums.SqlTypeNames.STRING),
-            bigquery.SchemaField("link", bigquery.enums.SqlTypeNames.STRING),
-            bigquery.SchemaField("story", bigquery.enums.SqlTypeNames.STRING),
-        ],
-        skip_leading_rows=0,
-        source_format=bigquery.SourceFormat.CSV,
-    )
+def upload_to_bigquery(client, table_id, data):
 
-    job = client.load_table_from_dataframe(
-        dataframe=dataframe,
-        destination='akronoma.NewsScraping.All_news',
-        location='US',
-        job_config=job_config,
-        job_id_prefix='job_load_df',
-    )
-
-    return job.result()
+    errors = client.insert_rows_json(table_id, data)  # Make an API request.
+    if errors == []:
+        print("New rows have been added.")
+    else:
+        print("Encountered errors while inserting rows: {}".format(errors))
