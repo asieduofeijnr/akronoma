@@ -1,12 +1,20 @@
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
+
 from email.mime.multipart import MIMEMultipart
+
 from email.mime.text import MIMEText
 from utilities import app_password
 from utilities import app_email
+
 from google.cloud import bigquery
 
 
@@ -15,25 +23,30 @@ import time
 import os
 
 
-def initialize_website(website_url):
-
+def initialize_website(website_url, max_retries=5, retry_delay=5):
     chrome_options = Options()
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    driver = webdriver.Chrome(options=chrome_options,
-                              service=Service(ChromeDriverManager().install()))
+    attempt = 0
+    while attempt < max_retries:
+        print('Driver Initializing... please wait')
+        try:
+            driver = webdriver.Chrome(options=chrome_options, service=Service(
+                ChromeDriverManager().install()))
+            driver.get(website_url)
+            return driver
+        except Exception as e:
+            attempt += 1
+            print(f"Attempt {attempt}: An error occurred - {str(e)}")
+            time.sleep(retry_delay)
 
-    try:
-        driver.get(website_url)
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-
-    return driver
+    print("Failed to initialize the WebDriver after multiple attempts.")
+    return None
 
 
-def penetrate_site(website, driver):
+def penetrate_site2(website, driver):
     driver.get(website)
     driver_links = driver.find_elements(
         By.XPATH, '//div[@id="inner-left-col"]//a')
@@ -41,14 +54,43 @@ def penetrate_site(website, driver):
     return raw_links
 
 
+def penetrate_site(website, driver, retries=3):
+    try:
+        driver.set_page_load_timeout(30)  # Timeout in seconds
+        driver.get(website)
+
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.XPATH, '//div[@id="inner-left-col"]//a'))
+        )
+
+        driver_links = driver.find_elements(
+            By.XPATH, '//div[@id="inner-left-col"]//a')
+        raw_links = [item.get_attribute('href') for item in driver_links]
+        return raw_links
+
+    except TimeoutException:
+        if retries > 0:
+            print(
+                f"Timeout occurred for {website}. Retrying... ({retries} retries left)")
+            return penetrate_site(website, driver, retries - 1)
+        else:
+            print(f"Failed to load {website} after several retries.")
+            return []
+
+
 def scrape_head_body(website, driver):
     tags = ['h1', 'p']
-    driver.get(website)
-    main_story = driver.find_element(
-        By.XPATH, '//div[@class="article-left-col"]')
-    header = main_story.find_element(By.XPATH, f'//{tags[0]}')
-    body = main_story.find_element(By.XPATH, '//p[@id="article-123"]')
-    return (header.text, body.text)
+    try:
+        driver.get(website)
+        main_story = driver.find_element(
+            By.XPATH, '//div[@class="article-left-col"]')
+        header = main_story.find_element(By.XPATH, f'//{tags[0]}')
+        body = main_story.find_element(By.XPATH, '//p[@id="article-123"]')
+        return header.text, body.text
+    except NoSuchElementException as e:
+        print(f"Element not found: {e}")
+        return None, None
 
 
 def email_sender(subject, body, recipient_email):
