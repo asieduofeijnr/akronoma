@@ -8,12 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
 from webdriver_manager.chrome import ChromeDriverManager
-
-from email.mime.multipart import MIMEMultipart
-
 from email.mime.text import MIMEText
-from utilities import app_password
-from utilities import app_email
 
 from google.cloud import bigquery
 
@@ -95,7 +90,8 @@ def scrape_head_body(website, driver):
 
 def email_sender(subject, body, recipient_email):
     sender_email = "adwintechnology@gmail.com"  # replace with your email
-    sender_password = app_password  # replace with your password
+    # replace with your password
+    sender_password = os.getenv('GMAIL_ADWIN_PASSWORD')
 
     try:
         # Set up server

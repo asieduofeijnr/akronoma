@@ -1,5 +1,4 @@
 from functions import *
-import os
 
 
 if __name__ == '__main__':
@@ -44,7 +43,8 @@ if __name__ == '__main__':
         for data in mother_extracts:
             print(f'Working on {data["Category"][0]}')
 
-            for count, site in enumerate(data['News'][:5], start=1):
+            # Remember to take full list when you deploy in data['News']
+            for count, site in enumerate(data['News'], start=1):
                 if site.split('/')[2] == stripped_website:
                     timestamp = time.time()
                     main = {
@@ -81,5 +81,5 @@ if __name__ == '__main__':
     else:
         subject = "AKRONOMA PROJECT"
         body = f'''Driver Failed to initialize'''
-        email_sender(subject, body, app_email)
+        email_sender(subject, body, os.getenv('MY_EMAIL'))
         print('Driver not initialized')
